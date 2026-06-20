@@ -88,7 +88,7 @@ function trash ($Path) {
 }
 
 function ff ($Name) {
-    if (_has fd) { fd $Name @args }
+    if (_has fd) { fd --glob $Name @args }
     else { Get-ChildItem -Recurse -Filter $Name -File | Select-Object -ExpandProperty FullName }
 }
 
