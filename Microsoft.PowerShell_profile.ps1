@@ -3,7 +3,7 @@
 oh-my-posh init pwsh --config $Home\Documents\PowerShell\cobalt2.omp.json | Invoke-Expression
 zoxide init --cmd z powershell | Out-String | Invoke-Expression
 if (Get-Command atuin -ErrorAction SilentlyContinue) { atuin init powershell --disable-up-arrow | Out-String | Invoke-Expression }
-if (Get-Command navi -ErrorAction SilentlyContinue) { navi widget powershell | Out-String | Invoke-Expression }
+
 Import-Module -Name Terminal-Icons
 
 # Rust CLI tools — fallback helper
@@ -526,7 +526,6 @@ ${dim}────────────────────────�
   ${command}gui${reset}                ${accent}→${reset} ${desc}gitui: git TUI${reset}
   ${command}fm${reset}                 ${accent}→${reset} ${desc}yazi: file manager${reset}
   ${command}tree [path]${reset}        ${accent}→${reset} ${desc}broot: arvore interativa${reset}
-  ${command}navi${reset}               ${accent}→${reset} ${desc}cheatsheet interativo (Ctrl+G)${reset}
 
 ${section}󰘴 System${reset}
 ${dim}────────────────────────────────────────────────────${reset}

@@ -41,19 +41,6 @@ foreach ($pkg in $wingetPkgs) {
 }
 
 Write-Host ""
-if (-not (Get-Command navi -ErrorAction SilentlyContinue)) {
-    if (Get-Command cargo -ErrorAction SilentlyContinue) {
-        Write-Host "${ylw}Instalando navi via cargo (nao disponivel no winget)...${rst}"
-        Write-Host "${dim}(requer MSVC Build Tools — se falhar, instale com: winget install Microsoft.VisualStudio.2022.BuildTools)${rst}"
-        cargo install navi
-    } else {
-        Write-Host "${dim}navi: pulando (requer cargo + MSVC Build Tools)${rst}"
-    }
-} else {
-    Write-Host "  ${dim}navi ja instalado, pulando${rst}"
-}
-
-Write-Host ""
 Write-Host "${ylw}Configurando delta como git pager...${rst}"
 git config --global core.pager delta
 git config --global interactive.diffFilter 'delta --color-only'
