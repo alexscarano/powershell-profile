@@ -1,5 +1,19 @@
 ### Chris Titus Tech's PowerShell profile
 
+# Rust CLI tools — add winget package dirs to PATH
+$_wingetBase = "$env:LOCALAPPDATA\Microsoft\WinGet\Packages"
+if (Test-Path $_wingetBase) {
+    Get-ChildItem $_wingetBase -Recurse -Filter "*.exe" -Depth 3 -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notmatch 'unins' } |
+        ForEach-Object { $_.DirectoryName } |
+        Sort-Object -Unique |
+        Where-Object { $env:PATH -notlike "*$_*" } |
+        ForEach-Object { $env:PATH = "$_;$env:PATH" }
+}
+@("$env:ProgramFiles\bottom\bin", "$env:ProgramFiles\gitui\bin") |
+    Where-Object { (Test-Path $_) -and ($env:PATH -notlike "*$_*") } |
+    ForEach-Object { $env:PATH = "$_;$env:PATH" }
+
 oh-my-posh init pwsh --config $Home\Documents\PowerShell\cobalt2.omp.json | Invoke-Expression
 zoxide init --cmd z powershell | Out-String | Invoke-Expression
 if (Get-Command atuin -ErrorAction SilentlyContinue) { atuin init powershell --disable-up-arrow | Out-String | Invoke-Expression }
