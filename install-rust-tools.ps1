@@ -19,10 +19,19 @@ $wingetPkgs = @(
     'StephanDilly.gitui'
     'sxyazi.yazi'
     'sharkdp.hyperfine'
+    'Atuinsh.Atuin'
+    'ducaale.xh'
+    'Dystroy.broot'
+    'dalance.procs'
 )
 
+$binNames = @{
+    'Clement.bottom' = 'btm'
+    'Atuinsh.Atuin' = 'atuin'
+}
+
 foreach ($pkg in $wingetPkgs) {
-    $name = $pkg.Split('.')[-1]
+    $name = if ($binNames.ContainsKey($pkg)) { $binNames[$pkg] } else { $pkg.Split('.')[-1] }
     if (Get-Command $name -ErrorAction SilentlyContinue) {
         Write-Host "  ${dim}$name ja instalado, pulando${rst}"
     } else {
@@ -32,18 +41,16 @@ foreach ($pkg in $wingetPkgs) {
 }
 
 Write-Host ""
-Write-Host "${ylw}Instalando ferramentas Rust via cargo...${rst}"
-Write-Host "${dim}(compila do fonte, pode demorar ~5-10min por ferramenta)${rst}"
-
-$cargoPkgs = @('navi', 'atuin', 'xh', 'broot', 'procs')
-
-foreach ($pkg in $cargoPkgs) {
-    if (Get-Command $pkg -ErrorAction SilentlyContinue) {
-        Write-Host "  ${dim}$pkg ja instalado, pulando${rst}"
+if (-not (Get-Command navi -ErrorAction SilentlyContinue)) {
+    if (Get-Command cargo -ErrorAction SilentlyContinue) {
+        Write-Host "${ylw}Instalando navi via cargo (nao disponivel no winget)...${rst}"
+        Write-Host "${dim}(requer MSVC Build Tools — se falhar, instale com: winget install Microsoft.VisualStudio.2022.BuildTools)${rst}"
+        cargo install navi
     } else {
-        Write-Host "  ${grn}Compilando $pkg...${rst}"
-        cargo install $pkg
+        Write-Host "${dim}navi: pulando (requer cargo + MSVC Build Tools)${rst}"
     }
+} else {
+    Write-Host "  ${dim}navi ja instalado, pulando${rst}"
 }
 
 Write-Host ""
