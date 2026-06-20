@@ -2,7 +2,18 @@
 
 oh-my-posh init pwsh --config $Home\Documents\PowerShell\cobalt2.omp.json | Invoke-Expression
 zoxide init --cmd z powershell | Out-String | Invoke-Expression
+if (Get-Command atuin -ErrorAction SilentlyContinue) { atuin init powershell --disable-up-arrow | Out-String | Invoke-Expression }
+if (Get-Command navi -ErrorAction SilentlyContinue) { navi widget powershell | Out-String | Invoke-Expression }
 Import-Module -Name Terminal-Icons
+
+# Rust CLI tools — fallback helper
+$_cmdCache = @{}
+function _has ($Cmd) {
+    if (-not $_cmdCache.ContainsKey($Cmd)) {
+        $_cmdCache[$Cmd] = [bool](Get-Command $Cmd -ErrorAction SilentlyContinue)
+    }
+    $_cmdCache[$Cmd]
+}
 
 Write-Host "Use 'Show-Help' to list all available functions" -ForegroundColor Yellow
 
@@ -63,11 +74,13 @@ function trash ($Path) {
 }
 
 function ff ($Name) {
-    Get-ChildItem -Recurse -Filter $Name -File | Select-Object -ExpandProperty FullName
+    if (_has fd) { fd $Name @args }
+    else { Get-ChildItem -Recurse -Filter $Name -File | Select-Object -ExpandProperty FullName }
 }
 
-function head ($Path) {
-    Get-Content $Path -Head 10
+function head ($Path, [int]$Lines = 10) {
+    if (_has bat) { bat -r ":$Lines" --style=plain $Path }
+    else { Get-Content $Path -Head $Lines }
 }
 
 function sed ($File, $Find, $Replace) {
@@ -164,11 +177,35 @@ function vlc { & "${env:ProgramFiles}\VideoLAN\VLC\vlc.exe" @args }
 
 # Listing / Viewing
 function la {
-    Get-ChildItem | Format-Table -AutoSize
+    if (_has eza) { eza --icons -a @args }
+    else { Get-ChildItem | Format-Table -AutoSize }
 }
 
 function ll {
-    Get-ChildItem -Force | Format-Table -AutoSize
+    if (_has eza) { eza --icons -la --git @args }
+    else { Get-ChildItem -Force | Format-Table -AutoSize }
+}
+
+# Rust Tools
+Remove-Alias cat -Force -ErrorAction SilentlyContinue
+function cat {
+    if (_has bat) { bat --style=plain @args }
+    else { Get-Content @args }
+}
+function du {
+    if (_has dust) { dust @args }
+    else { Get-ChildItem -Recurse -File @args | Measure-Object -Property Length -Sum }
+}
+function top { btm @args }
+function ps2 { procs @args }
+function loc { tokei @args }
+function bench { hyperfine @args }
+function http { xh @args }
+function gui { gitui @args }
+function fm { yazi @args }
+function tree {
+    if (_has broot) { broot @args }
+    else { Get-ChildItem -Recurse -Depth 2 @args }
 }
 
 # Network
@@ -263,9 +300,77 @@ function togif ($In, [int]$Fps = 15, [int]$W = 480) { ffmpeg -i $In -vf "fps=$Fp
 function towebm ($In) { ffmpeg -i $In -c:v libvpx-vp9 -crf 30 -b:v 0 -c:a libopus "$([IO.Path]::ChangeExtension($In, '.webm'))" }
 function toflac ($In) { ffmpeg -i $In -vn -c:a flac "$([IO.Path]::ChangeExtension($In, '.flac'))" }
 
+# cURL Helpers — APIs brasileiras
+function cep ($Num) {
+    $Num = $Num -replace '\D'
+    $r = Invoke-RestMethod "https://viacep.com.br/ws/$Num/json/"
+    if ($r.erro) { Write-Host "CEP nao encontrado" -ForegroundColor Red; return }
+    $dim = $PSStyle.Foreground.BrightBlack
+    $val = $PSStyle.Foreground.BrightWhite
+    $lbl = $PSStyle.Foreground.BrightCyan
+    $rst = $PSStyle.Reset
+    Write-Host "${lbl}$($r.logradouro)${rst}${dim}, ${rst}${val}$($r.bairro)${rst}"
+    Write-Host "${lbl}$($r.localidade)${rst}${dim}/${rst}${val}$($r.uf)${rst} ${dim}($Num)${rst}"
+}
+
+function cnpj ($Num) {
+    $Num = $Num -replace '\D'
+    $r = Invoke-RestMethod "https://receitaws.com.br/v1/cnpj/$Num"
+    if ($r.status -eq 'ERROR') { Write-Host "$($r.message)" -ForegroundColor Red; return }
+    $dim = $PSStyle.Foreground.BrightBlack
+    $val = $PSStyle.Foreground.BrightWhite
+    $lbl = $PSStyle.Foreground.BrightCyan
+    $grn = $PSStyle.Foreground.BrightGreen
+    $rst = $PSStyle.Reset
+    Write-Host "${lbl}$($r.nome)${rst}"
+    Write-Host "${dim}Fantasia: ${rst}${val}$($r.fantasia)${rst}"
+    Write-Host "${dim}Situacao: ${rst}${grn}$($r.situacao)${rst}"
+    Write-Host "${dim}Abertura: ${rst}${val}$($r.abertura)${rst}"
+}
+
+function dolar {
+    $r = Invoke-RestMethod "https://economia.awesomeapi.com.br/json/last/USD-BRL"
+    $v = $r.'USDBRL'
+    $dim = $PSStyle.Foreground.BrightBlack
+    $grn = $PSStyle.Foreground.BrightGreen
+    $rst = $PSStyle.Reset
+    Write-Host "${grn}R`$ $($v.bid)${rst} ${dim}(compra)${rst} ${grn}R`$ $($v.ask)${rst} ${dim}(venda)${rst}"
+    Write-Host "${dim}Atualizado: $($v.create_date)${rst}"
+}
+
+function btc {
+    $r = Invoke-RestMethod "https://economia.awesomeapi.com.br/json/last/BTC-BRL"
+    $v = $r.'BTCBRL'
+    $dim = $PSStyle.Foreground.BrightBlack
+    $ylw = $PSStyle.Foreground.BrightYellow
+    $rst = $PSStyle.Reset
+    Write-Host "${ylw}R`$ $([math]::Round([decimal]$v.bid, 2))${rst} ${dim}(compra)${rst} ${ylw}R`$ $([math]::Round([decimal]$v.ask, 2))${rst} ${dim}(venda)${rst}"
+    Write-Host "${dim}Atualizado: $($v.create_date)${rst}"
+}
+
+# cURL Helpers — Debug/dev
+function curltime ($Url) { curl.exe -so NUL -w "`nDNS:     %{time_namelookup}s`nConnect: %{time_connect}s`nTLS:     %{time_appconnect}s`nTTFB:    %{time_starttransfer}s`nTotal:   %{time_total}s`nStatus:  %{http_code}`n" $Url }
+function curlhead ($Url) { curl.exe -sI $Url @args }
+function curlssl ($Domain) { curl.exe -vvI --silent "https://$Domain" --stderr - | Select-String '\*\s+(subject|issuer|expire|start date|SSL)' }
+function curlstatus ($Url) { curl.exe -so NUL -w "%{http_code}`n" $Url }
+function curlfollow ($Url) { curl.exe -sIL $Url | Select-String 'HTTP/|location:' }
+
+# cURL Helpers — Verbos HTTP (JSON pre-configurado)
+function cget ($Url) { curl.exe -s -H "Accept: application/json" $Url @args }
+function cpost ($Url, $Body) { curl.exe -s -X POST -H "Content-Type: application/json" -H "Accept: application/json" -d $Body $Url @args }
+function cput ($Url, $Body) { curl.exe -s -X PUT -H "Content-Type: application/json" -H "Accept: application/json" -d $Body $Url @args }
+function cpatch ($Url, $Body) { curl.exe -s -X PATCH -H "Content-Type: application/json" -H "Accept: application/json" -d $Body $Url @args }
+function cdel ($Url) { curl.exe -s -X DELETE -H "Accept: application/json" $Url @args }
+
+# cURL Helpers — Download
+function cdl ($Url) { curl.exe -L -O -C - --progress-bar $Url @args }
+function cdlr ($Url) { curl.exe -L -O -C - --retry 3 --retry-delay 2 --progress-bar $Url @args }
+
 # Aliases
+Set-Alias -Name c -Value Clear-Host
 Set-Alias -Name unzip -Value Expand-Archive
-Set-Alias -Name grep -Value Select-String
+if (_has rg) { Set-Alias -Name grep -Value rg }
+else { Set-Alias -Name grep -Value Select-String }
 
 # Help Function
 function Show-Help {
@@ -345,6 +450,25 @@ ${dim}────────────────────────�
   ${command}flushdns${reset}           ${accent}→${reset} ${desc}Clear DNS cache${reset}
   ${command}testport <h> <p>${reset}   ${accent}→${reset} ${desc}Test port connectivity${reset}
 
+${section}󰖟 cURL${reset}
+${dim}────────────────────────────────────────────────────${reset}
+  ${command}cep <num>${reset}          ${accent}→${reset} ${desc}Consulta CEP (ViaCEP)${reset}
+  ${command}cnpj <num>${reset}         ${accent}→${reset} ${desc}Consulta CNPJ (ReceitaWS)${reset}
+  ${command}dolar${reset}              ${accent}→${reset} ${desc}Cotacao USD/BRL${reset}
+  ${command}btc${reset}                ${accent}→${reset} ${desc}Cotacao BTC/BRL${reset}
+  ${command}curltime <url>${reset}     ${accent}→${reset} ${desc}Tempo detalhado (DNS/TLS/TTFB)${reset}
+  ${command}curlhead <url>${reset}     ${accent}→${reset} ${desc}Headers de resposta${reset}
+  ${command}curlssl <host>${reset}     ${accent}→${reset} ${desc}Info certificado SSL${reset}
+  ${command}curlstatus <url>${reset}   ${accent}→${reset} ${desc}HTTP status code${reset}
+  ${command}curlfollow <url>${reset}   ${accent}→${reset} ${desc}Cadeia de redirects${reset}
+  ${command}cget <url>${reset}         ${accent}→${reset} ${desc}GET JSON${reset}
+  ${command}cpost <url> <j>${reset}    ${accent}→${reset} ${desc}POST JSON${reset}
+  ${command}cput <url> <j>${reset}     ${accent}→${reset} ${desc}PUT JSON${reset}
+  ${command}cpatch <url> <j>${reset}   ${accent}→${reset} ${desc}PATCH JSON${reset}
+  ${command}cdel <url>${reset}         ${accent}→${reset} ${desc}DELETE${reset}
+  ${command}cdl <url>${reset}          ${accent}→${reset} ${desc}Download com resume${reset}
+  ${command}cdlr <url>${reset}         ${accent}→${reset} ${desc}Download com retry (3x)${reset}
+
 ${section}󰅍 Clipboard / Text${reset}
 ${dim}────────────────────────────────────────────────────${reset}
   ${command}<cmd> | cb${reset}         ${accent}→${reset} ${desc}Copy output to clipboard${reset}
@@ -385,18 +509,34 @@ ${dim}────────────────────────�
   ${command}togif <f> [fps] [w]${reset} ${accent}→${reset} ${desc}Convert to GIF (default 15fps 480w)${reset}
   ${command}towebm <file>${reset}      ${accent}→${reset} ${desc}Convert to WebM (VP9)${reset}
 
+${section}󱓞 Rust Tools${reset}
+${dim}────────────────────────────────────────────────────${reset}
+  ${command}la${reset}                 ${accent}→${reset} ${desc}eza: listar com icons${reset}
+  ${command}ll${reset}                 ${accent}→${reset} ${desc}eza: listar tudo + git status${reset}
+  ${command}ff <nome>${reset}          ${accent}→${reset} ${desc}fd: buscar arquivos${reset}
+  ${command}grep <padrao>${reset}      ${accent}→${reset} ${desc}rg: ripgrep${reset}
+  ${command}head <arq> [n]${reset}     ${accent}→${reset} ${desc}bat: primeiras N linhas${reset}
+  ${command}cat <arq>${reset}          ${accent}→${reset} ${desc}bat: ver com syntax highlight${reset}
+  ${command}du [path]${reset}          ${accent}→${reset} ${desc}dust: uso de disco${reset}
+  ${command}top${reset}                ${accent}→${reset} ${desc}bottom: monitor do sistema${reset}
+  ${command}ps2${reset}                ${accent}→${reset} ${desc}procs: lista de processos${reset}
+  ${command}loc [path]${reset}         ${accent}→${reset} ${desc}tokei: contar linhas de codigo${reset}
+  ${command}bench <cmd>${reset}        ${accent}→${reset} ${desc}hyperfine: benchmark${reset}
+  ${command}http <met> <url>${reset}   ${accent}→${reset} ${desc}xh: HTTP client${reset}
+  ${command}gui${reset}                ${accent}→${reset} ${desc}gitui: git TUI${reset}
+  ${command}fm${reset}                 ${accent}→${reset} ${desc}yazi: file manager${reset}
+  ${command}tree [path]${reset}        ${accent}→${reset} ${desc}broot: arvore interativa${reset}
+  ${command}navi${reset}               ${accent}→${reset} ${desc}cheatsheet interativo (Ctrl+G)${reset}
+
 ${section}󰘴 System${reset}
 ${dim}────────────────────────────────────────────────────${reset}
-  ${command}ff <name>${reset}          ${accent}→${reset} ${desc}Search files${reset}
-  ${command}grep <pattern>${reset}     ${accent}→${reset} ${desc}Search text${reset}
-  ${command}head <file>${reset}        ${accent}→${reset} ${desc}First 10 lines${reset}
   ${command}touch <file>${reset}       ${accent}→${reset} ${desc}Create file${reset}
   ${command}mkcd <dir>${reset}         ${accent}→${reset} ${desc}Create + enter dir${reset}
   ${command}sed <f> <find> <rep>${reset} ${accent}→${reset} ${desc}Replace text${reset}
-  ${command}la / ll${reset}            ${accent}→${reset} ${desc}List files / all files${reset}
   ${command}pgrep / pkill / k9${reset} ${accent}→${reset} ${desc}Find / kill process${reset}
   ${command}which <name>${reset}       ${accent}→${reset} ${desc}Locate command${reset}
   ${command}unzip <file>${reset}       ${accent}→${reset} ${desc}Extract zip${reset}
+  ${command}c${reset}                  ${accent}→${reset} ${desc}Clear screen${reset}
   ${command}uptime${reset}             ${accent}→${reset} ${desc}System uptime${reset}
   ${command}winutil${reset}            ${accent}→${reset} ${desc}Run WinUtil${reset}
 
