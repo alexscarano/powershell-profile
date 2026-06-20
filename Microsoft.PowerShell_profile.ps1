@@ -10,7 +10,7 @@ if (Test-Path $_wingetBase) {
         Where-Object { $env:PATH -notlike "*$_*" } |
         ForEach-Object { $env:PATH = "$_;$env:PATH" }
 }
-@("$env:ProgramFiles\bottom\bin", "$env:ProgramFiles\gitui\bin") |
+@("$env:ProgramFiles\bottom\bin", "$env:ProgramFiles\gitui\bin", "${env:ProgramFiles(x86)}\GnuWin32\bin") |
     Where-Object { (Test-Path $_) -and ($env:PATH -notlike "*$_*") } |
     ForEach-Object { $env:PATH = "$_;$env:PATH" }
 
