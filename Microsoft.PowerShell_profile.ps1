@@ -4,15 +4,15 @@
 $_wingetBase = "$env:LOCALAPPDATA\Microsoft\WinGet\Packages"
 if (Test-Path $_wingetBase) {
     Get-ChildItem $_wingetBase -Recurse -Filter "*.exe" -Depth 3 -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -notmatch 'unins' } |
-        ForEach-Object { $_.DirectoryName } |
-        Sort-Object -Unique |
-        Where-Object { $env:PATH -notlike "*$_*" } |
-        ForEach-Object { $env:PATH = "$_;$env:PATH" }
+    Where-Object { $_.Name -notmatch 'unins' } |
+    ForEach-Object { $_.DirectoryName } |
+    Sort-Object -Unique |
+    Where-Object { $env:PATH -notlike "*$_*" } |
+    ForEach-Object { $env:PATH = "$_;$env:PATH" }
 }
 @("$env:ProgramFiles\bottom\bin", "$env:ProgramFiles\gitui\bin", "${env:ProgramFiles(x86)}\GnuWin32\bin") |
-    Where-Object { (Test-Path $_) -and ($env:PATH -notlike "*$_*") } |
-    ForEach-Object { $env:PATH = "$_;$env:PATH" }
+Where-Object { (Test-Path $_) -and ($env:PATH -notlike "*$_*") } |
+ForEach-Object { $env:PATH = "$_;$env:PATH" }
 
 oh-my-posh init pwsh --config $Home\Documents\PowerShell\cobalt2.omp.json | Invoke-Expression
 zoxide init --cmd z powershell | Out-String | Invoke-Expression
@@ -160,6 +160,17 @@ function dcb { docker compose build @args }
 function dcl { docker compose logs -f @args }
 function dps { docker ps @args }
 function dex { docker exec -it @args }
+function don { wsl -d docker-desktop }
+function dokr { don; ocker }
+function doff { wsl --terminate docker-desktop }
+function okr { ocker }
+function csv { csvlens @args }
+
+# WSL
+function wls { wsl -l -v }
+function woff { wsl --shutdown }
+function wk ($Distro) { wsl --terminate $Distro }
+function wsh { wsl -d @args }
 
 # Bun
 function bi { bun install @args }
@@ -299,8 +310,9 @@ function ytls { yt-dlp -F @args }
 
 # yt-dlp -> ~/Videos
 $_vdir = "$Home\Videos"
+$_vmdir = "$Home\Music"
 function vytmp4 { ytmp4 -o "$_vdir\%(title)s.%(ext)s" @args }
-function vytmp3 { ytmp3 -o "$_vdir\%(title)s.%(ext)s" @args }
+function vytmp3 { ytmp3 -o "$_vmdir\%(title)s.%(ext)s" @args }
 function vyt720 { yt720 -o "$_vdir\%(title)s.%(ext)s" @args }
 function vyt1080 { yt1080 -o "$_vdir\%(title)s.%(ext)s" @args }
 function vyt4k { yt4k -o "$_vdir\%(title)s.%(ext)s" @args }
@@ -426,6 +438,18 @@ ${dim}────────────────────────�
   ${command}dcl${reset}                ${accent}→${reset} ${desc}compose logs -f${reset}
   ${command}dps${reset}                ${accent}→${reset} ${desc}docker ps${reset}
   ${command}dex <id> <cmd>${reset}     ${accent}→${reset} ${desc}docker exec -it${reset}
+  ${command}don${reset}                ${accent}→${reset} ${desc}iniciar Docker Desktop WSL${reset}
+  ${command}dokr${reset}               ${accent}→${reset} ${desc}iniciar Docker WSL + ocker TUI${reset}
+  ${command}doff${reset}               ${accent}→${reset} ${desc}parar Docker Desktop WSL${reset}
+  ${command}okr${reset}                ${accent}→${reset} ${desc}ocker TUI${reset}
+  ${command}csv <file>${reset}         ${accent}→${reset} ${desc}csvlens${reset}
+
+${section} WSL${reset}
+${dim}────────────────────────────────────────────────────${reset}
+  ${command}wls${reset}                ${accent}→${reset} ${desc}listar distros + estado${reset}
+  ${command}woff${reset}               ${accent}→${reset} ${desc}parar todas as distros${reset}
+  ${command}wk <distro>${reset}        ${accent}→${reset} ${desc}parar uma distro${reset}
+  ${command}wsh <distro>${reset}       ${accent}→${reset} ${desc}entrar no shell${reset}
 
 ${section}󰈸 Bun${reset}
 ${dim}────────────────────────────────────────────────────${reset}
